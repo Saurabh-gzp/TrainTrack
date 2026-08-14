@@ -54,6 +54,12 @@ python3 traintrack.py
 python3 traintrack.py
 ```
 
+Or, if you set a custom command during install (e.g. `train`):
+
+```bash
+train
+```
+
 ### Menu
 ```
   1. PNR Status (+ Names)     ← everything in one place (recommended)
@@ -62,8 +68,13 @@ python3 traintrack.py
   4. Seat Availability
   5. PNR Names (IRCTC - masked)
   6. Station Code Helper
+  7. Change Launch Command    ← set your own command name
   0. Exit
 ```
+
+### Set / change your launch command
+Run option **7** from the menu and enter any name (e.g. `train`).
+After that, just typing `train` launches TrainTrack from anywhere.
 
 ### Example — PNR Status
 ```

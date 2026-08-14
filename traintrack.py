@@ -2,27 +2,23 @@
 # -*- coding: utf-8 -*-
 """
 =====================================================================
- Track My Train — CLI (single file, Python 3, ZERO dependencies)
+ TrainTrack — Indian Railways CLI (single file, Python 3, no deps)
 =====================================================================
-"Track my Train" app (com.transitin.trackmytrain) ka full CLI version.
+PNR Status, Live Train Status, Passenger Names, Seat Availability
+and more — right from your terminal.
 
 FEATURES:
-  1. PNR Status (+ names)   -> trackmytrain backend + ixigo + IRCTC
-  2. Live Train Status      -> trackmytrain backend
-  3. Trains Between         -> eRail public API
-  4. Seat Availability      -> eRail public API
-  5. PNR Names (IRCTC)      -> real masked name ("CHAxxxx xxxxx")
-  6. Station Code Helper
+  1. PNR Status (+ names)    -> full booking details + passenger names
+  2. Live Train Status       -> current location + per-station delays
+  3. Trains Between          -> all trains between two stations
+  4. Seat Availability       -> availability by date and quota
+  5. PNR Names               -> real masked name ("CHAxxxx xxxxx")
+  6. Station Code Helper     -> common station codes
+  7. Change Launch Command   -> set your own command name
 
 No pip install needed — just Python 3.
 
-REVERSE-ENGINEERED (is app se):
-  - ChaCha20 stream cipher (trackmytrain backend)
-  - AES-256-CBC (IRCTC Tourism API, guestlogin + pnrSearch)
-  - ixigo signature API
-  - IRCTC math captcha
-
-RUN:  python3 track_my_train.py
+RUN:  python3 traintrack.py
 """
 
 import ssl
@@ -268,7 +264,7 @@ def aes_decrypt_str(b64, key_str, iv_str):
 
 
 # ==================================================================
-# ChaCha20 (reverse-engineered from libsqlite3x.so)
+# ChaCha20 stream cipher (RFC 7539)
 # ==================================================================
 _KEY = bytes.fromhex("6954c016d42f66215789e489029b8190241d8b0b7b5686d4d617d36a519cbea8")
 _NONCE = bytes.fromhex("c9cde0fa234addac0b3abb73")
@@ -342,7 +338,7 @@ def http_get(url, headers, timeout=25):
 
 
 # ==================================================================
-# TrackMyTrain backend (ChaCha20)
+# Train enquiry API (ChaCha20)
 # ==================================================================
 BACKEND = "https://api.trackmytrain.co.in/android"
 
@@ -491,7 +487,7 @@ def pnr_status():
         return
     print(f"\n[..] Fetching PNR {pnr}...\n")
 
-    # 1. trackmytrain backend (reliable)
+    # 1. train enquiry API (reliable)
     body = '{\n  "pnr":"%s",\n  "method":"pnr"\n}' % pnr
     try:
         resp = backend_call(body)
@@ -733,6 +729,79 @@ def station_helper():
             print(f"  {c:<6} {n}")
 
 
+def change_launch_command():
+    """Set or change the custom launch command name (e.g. `train`).
+
+    Creates a wrapper script in ~/.traintrack/ with the chosen name.
+    Since ~/.traintrack is added to PATH by the installer, typing the
+    command name launches TrainTrack from anywhere.
+    """
+    import os
+    install_dir = os.path.expanduser("~/.traintrack")
+    script_path = os.path.realpath(__file__)
+    cmd_file = os.path.join(install_dir, ".cmdname")
+
+    # read old command name (to clean up)
+    old_name = ""
+    if os.path.isfile(cmd_file):
+        try:
+            with open(cmd_file, "r") as f:
+                old_name = f.read().strip()
+        except Exception:
+            old_name = ""
+
+    print()
+    print("  Change Launch Command")
+    print("  ---------------------")
+    print("  Current command: %s" % (old_name if old_name else "none (set your own)"))
+    print()
+    name = input("  New launch command name (e.g. train): ").strip()
+
+    if not name:
+        print("[!] Command name cannot be empty.")
+        return
+    if name in ("python", "python3", "sh", "bash", "ls", "cd", "rm", "cat", "sudo"):
+        print("[!] That name is reserved. Choose a different one.")
+        return
+    if not name.replace("_", "").replace("-", "").isalnum():
+        print("[!] Invalid name. Use letters, numbers, '-' or '_' only.")
+        return
+
+    os.makedirs(install_dir, exist_ok=True)
+
+    # remove old wrapper if it exists
+    if old_name and old_name != name:
+        old_target = os.path.join(install_dir, old_name)
+        if os.path.isfile(old_target) or os.path.islink(old_target):
+            try:
+                os.remove(old_target)
+            except Exception:
+                pass
+
+    # create new wrapper
+    target = os.path.join(install_dir, name)
+    wrapper = "#!/bin/sh\nexec python3 \"%s\" \"$@\"\n" % script_path
+    try:
+        with open(target, "w") as f:
+            f.write(wrapper)
+        os.chmod(target, 0o755)
+    except Exception as e:
+        print("[X] Failed to create command: %s" % e)
+        return
+
+    # remember the name
+    try:
+        with open(cmd_file, "w") as f:
+            f.write(name)
+    except Exception:
+        pass
+
+    print()
+    print("[+] Launch command set!")
+    print("    Now type:  %s" % name)
+    print("    (open a NEW terminal if the command is not found yet)")
+
+
 MENU = [
     ("PNR Status (+ Names)", pnr_status),
     ("Live Train Status", live_status),
@@ -740,14 +809,15 @@ MENU = [
     ("Seat Availability", seat_availability),
     ("PNR Names (IRCTC - masked)", pnr_names_irctc),
     ("Station Code Helper", station_helper),
+    ("Change Launch Command", change_launch_command),
 ]
 
 
 def main():
     print("=" * 60)
-    print("  TRACK MY TRAIN — CLI  (Indian Railways)")
+    print("  TrainTrack — Indian Railways CLI")
     print("=" * 60)
-    print("  PNR + Live Status  -> app private backend (reverse-engineered)")
+    print("  PNR + Live Status  -> live enquiry data")
     print("  Names              -> IRCTC Tourism (real masked name)")
     print("  Trains/Seat        -> eRail public API")
     print()

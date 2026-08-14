@@ -39,7 +39,26 @@ mkdir -p "$INSTALL_DIR"
 $FETCH "$REPO/traintrack.py" > "$INSTALL_DIR/traintrack.py"
 chmod +x "$INSTALL_DIR/traintrack.py"
 
-# 4. Add to PATH (shell rc)
+# 4. Ask for a launch command name
+echo ""
+printf "  What command name do you want? (e.g. train) [default: traintrack]: "
+read CMD_NAME
+if [ -z "$CMD_NAME" ]; then
+    CMD_NAME="traintrack"
+fi
+# sanitize (letters, digits, - and _ only)
+CMD_NAME=$(echo "$CMD_NAME" | tr -cd 'a-zA-Z0-9_-')
+if [ -z "$CMD_NAME" ]; then
+    CMD_NAME="traintrack"
+fi
+
+# create the launch wrapper
+WRAPPER="$INSTALL_DIR/$CMD_NAME"
+printf '#!/bin/sh\nexec python3 "%s/traintrack.py" "$@"\n' "$INSTALL_DIR" > "$WRAPPER"
+chmod +x "$WRAPPER"
+echo "[+] Launch command set: $CMD_NAME"
+
+# 5. Add to PATH (shell rc)
 add_path() {
     RC="$1"
     if [ -f "$RC" ]; then
@@ -56,19 +75,22 @@ add_path "$HOME/.bashrc"
 add_path "$HOME/.zshrc"
 add_path "$HOME/.profile"
 
-# 5. Done
+# 6. Done
 echo ""
 echo "=========================================="
 echo "  INSTALL COMPLETE!"
 echo "=========================================="
 echo ""
-echo "  Run it in either of two ways:"
+echo "  Run it in any of these three ways:"
 echo ""
-echo "  1) Direct (recommended):"
+echo "  1) Your custom command (recommended):"
+echo "     $CMD_NAME"
+echo ""
+echo "  2) Direct:"
 echo "     python3 $INSTALL_DIR/traintrack.py"
 echo ""
-echo "  2) Command (after opening a new terminal):"
-echo "     traintrack.py"
+echo "  3) Full path:"
+echo "     $INSTALL_DIR/traintrack.py"
 echo ""
 echo "  NOTE: open a new terminal so the PATH update takes effect."
 echo "=========================================="
