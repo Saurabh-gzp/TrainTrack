@@ -732,9 +732,9 @@ def station_helper():
 def change_launch_command():
     """Set or change the custom launch command name (e.g. `train`).
 
-    Creates a wrapper script in ~/.traintrack/ with the chosen name.
-    Since ~/.traintrack is added to PATH by the installer, typing the
-    command name launches TrainTrack from anywhere.
+    Creates a wrapper in ~/.traintrack/ AND symlinks it into a directory
+    that is already in PATH (Termux: $PREFIX/bin, Linux: ~/.local/bin),
+    so the command works immediately without opening a new terminal.
     """
     import os
     install_dir = os.path.expanduser("~/.traintrack")
@@ -749,6 +749,16 @@ def change_launch_command():
                 old_name = f.read().strip()
         except Exception:
             old_name = ""
+
+    # find a writable directory that is already in PATH
+    bin_dir = ""
+    prefix = os.environ.get("PREFIX", "")
+    if prefix and os.path.isdir(os.path.join(prefix, "bin")):
+        bin_dir = os.path.join(prefix, "bin")
+    elif os.path.isdir(os.path.expanduser("~/.local/bin")):
+        bin_dir = os.path.expanduser("~/.local/bin")
+    elif os.path.isdir(os.path.expanduser("~/bin")):
+        bin_dir = os.path.expanduser("~/bin")
 
     print()
     print("  Change Launch Command")
@@ -769,10 +779,10 @@ def change_launch_command():
 
     os.makedirs(install_dir, exist_ok=True)
 
-    # remove old wrapper if it exists
-    if old_name and old_name != name:
-        old_target = os.path.join(install_dir, old_name)
-        if os.path.isfile(old_target) or os.path.islink(old_target):
+    # remove old wrapper + old symlink
+    for old_target in (os.path.join(install_dir, old_name),
+                       os.path.join(bin_dir, old_name) if bin_dir else ""):
+        if old_target and (os.path.isfile(old_target) or os.path.islink(old_target)):
             try:
                 os.remove(old_target)
             except Exception:
@@ -789,6 +799,18 @@ def change_launch_command():
         print("[X] Failed to create command: %s" % e)
         return
 
+    # symlink into PATH directory so it works immediately
+    linked = False
+    if bin_dir:
+        try:
+            link = os.path.join(bin_dir, name)
+            if os.path.lexists(link):
+                os.remove(link)
+            os.symlink(target, link)
+            linked = True
+        except Exception:
+            linked = False
+
     # remember the name
     try:
         with open(cmd_file, "w") as f:
@@ -798,8 +820,12 @@ def change_launch_command():
 
     print()
     print("[+] Launch command set!")
-    print("    Now type:  %s" % name)
-    print("    (open a NEW terminal if the command is not found yet)")
+    if linked:
+        print("    Command installed in: %s" % bin_dir)
+        print("    Type now:  %s   (works immediately)" % name)
+    else:
+        print("    Type:  %s" % name)
+        print("    (run:  source ~/.bashrc   if the command is not found)")
 
 
 MENU = [

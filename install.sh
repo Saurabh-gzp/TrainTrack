@@ -62,13 +62,36 @@ if [ -z "$CMD_NAME" ]; then
     CMD_NAME="traintrack"
 fi
 
-# create the launch wrapper
+# 5. Install the launch command into a directory that is ALREADY in PATH
+#    so it works immediately (no new terminal needed).
+installed_bin=""
+if [ -n "$PREFIX" ] && [ -d "$PREFIX/bin" ]; then
+    # Termux: $PREFIX/bin is always in PATH and writable by the user
+    BIN_DIR="$PREFIX/bin"
+    installed_bin="yes"
+elif [ -d "$HOME/.local/bin" ]; then
+    BIN_DIR="$HOME/.local/bin"
+    installed_bin="yes"
+elif [ -d "$HOME/bin" ]; then
+    BIN_DIR="$HOME/bin"
+    installed_bin="yes"
+fi
+
+# Always create the wrapper in INSTALL_DIR (fallback + full-path run)
 WRAPPER="$INSTALL_DIR/$CMD_NAME"
 printf '#!/bin/sh\nexec python3 "%s/traintrack.py" "$@"\n' "$INSTALL_DIR" > "$WRAPPER"
 chmod +x "$WRAPPER"
-echo "[+] Launch command set: $CMD_NAME"
 
-# 5. Add to PATH (shell rc)
+# Create the actual command (symlink into a PATH directory if possible)
+if [ "$installed_bin" = "yes" ]; then
+    ln -sf "$WRAPPER" "$BIN_DIR/$CMD_NAME"
+    echo "[+] Command installed: $CMD_NAME  (in $BIN_DIR)"
+    echo "[+] It works immediately — no new terminal needed."
+else
+    echo "[+] Launch wrapper created: $WRAPPER"
+fi
+
+# 6. Add INSTALL_DIR to PATH (shell rc) as a fallback
 add_path() {
     RC="$1"
     if [ -f "$RC" ]; then
@@ -76,16 +99,19 @@ add_path() {
             echo "" >> "$RC"
             echo "# TrainTrack" >> "$RC"
             echo "export PATH=\"\$PATH:$INSTALL_DIR\"" >> "$RC"
-            echo "[+] PATH added to $RC"
         fi
     fi
 }
-
 add_path "$HOME/.bashrc"
 add_path "$HOME/.zshrc"
 add_path "$HOME/.profile"
 
-# 6. Done
+# 7. Make it available in the CURRENT session too
+if [ "$installed_bin" = "yes" ]; then
+    export PATH="$BIN_DIR:$PATH"
+fi
+
+# 8. Done
 echo ""
 echo "=========================================="
 echo "  INSTALL COMPLETE!"
@@ -93,7 +119,7 @@ echo "=========================================="
 echo ""
 echo "  Run it in any of these three ways:"
 echo ""
-echo "  1) Your custom command (recommended):"
+echo "  1) Your command (works right now):"
 echo "     $CMD_NAME"
 echo ""
 echo "  2) Direct:"
@@ -101,7 +127,5 @@ echo "     python3 $INSTALL_DIR/traintrack.py"
 echo ""
 echo "  3) Full path:"
 echo "     $INSTALL_DIR/traintrack.py"
-echo ""
-echo "  NOTE: open a new terminal so the PATH update takes effect."
 echo "=========================================="
 echo ""
