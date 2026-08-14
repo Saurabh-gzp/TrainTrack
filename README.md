@@ -1,5 +1,9 @@
 # 🚆 TrainTrack — Indian Railways CLI
 
+<p align="center">
+  <img src="banner.webp" alt="TrainTrack" width="400" />
+</p>
+
 > **PNR Status · Live Train Status · Passenger Names · Seat Availability** — all from your terminal, with a single command.
 
 [![Python](https://img.shields.io/badge/Python-3.6%2B-blue.svg)](https://www.python.org/)
