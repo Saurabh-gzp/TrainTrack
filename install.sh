@@ -42,12 +42,22 @@ chmod +x "$INSTALL_DIR/traintrack.py"
 # 4. Ask for a launch command name
 echo ""
 printf "  What command name do you want? (e.g. train) [default: traintrack]: "
-read CMD_NAME
+CMD_NAME=""
+# When piped via `curl | bash`, stdin is the script itself, so we must read
+# from the controlling terminal (/dev/tty) instead. If there is no terminal
+# at all (non-interactive), fall back to the default name silently.
+if [ -t 0 ]; then
+    read -r CMD_NAME
+else
+    if read -r CMD_NAME < /dev/tty 2>/dev/null; then
+        :
+    fi
+fi
 if [ -z "$CMD_NAME" ]; then
     CMD_NAME="traintrack"
 fi
 # sanitize (letters, digits, - and _ only)
-CMD_NAME=$(echo "$CMD_NAME" | tr -cd 'a-zA-Z0-9_-')
+CMD_NAME=$(printf '%s' "$CMD_NAME" | tr -cd 'a-zA-Z0-9_-')
 if [ -z "$CMD_NAME" ]; then
     CMD_NAME="traintrack"
 fi
