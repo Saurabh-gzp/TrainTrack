@@ -36,6 +36,8 @@ Tired of opening the IRCTC website or a mobile app just to check your PNR or tra
 curl -fsSL https://raw.githubusercontent.com/Saurabh-gzp/TrainTrack/main/install.sh | bash
 ```
 
+> **⚠️ After installing, fully restart Termux** (close the app completely and reopen it) so the custom launch command gets picked up.
+
 Or manually:
 
 ```bash
