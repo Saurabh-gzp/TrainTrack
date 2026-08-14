@@ -24,12 +24,132 @@ RUN:  python3 traintrack.py
 import ssl
 import struct
 import sys
+import os
 import base64
 import json
 import random
 import urllib.request
 import urllib.parse
 from datetime import datetime
+
+
+# ==================================================================
+# Terminal UI — colors, boxes, styling (ANSI, zero dependencies)
+# ==================================================================
+def _color_supported():
+    """Detect whether the terminal supports ANSI colors."""
+    if os.environ.get("NO_COLOR"):
+        return False
+    if not hasattr(sys.stdout, "isatty") or not sys.stdout.isatty():
+        return False
+    term = os.environ.get("TERM", "")
+    if term == "dumb":
+        return False
+    return True
+
+
+_USE_COLOR = _color_supported()
+
+# ANSI escape codes
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
+_DIM = "\033[2m"
+_COLORS = {
+    "red": "\033[31m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "blue": "\033[34m",
+    "magenta": "\033[35m",
+    "cyan": "\033[36m",
+    "white": "\033[37m",
+    "bright_red": "\033[91m",
+    "bright_green": "\033[92m",
+    "bright_yellow": "\033[93m",
+    "bright_blue": "\033[94m",
+    "bright_magenta": "\033[95m",
+    "bright_cyan": "\033[96m",
+    "bright_white": "\033[97m",
+    # background
+    "bg_red": "\033[41m",
+    "bg_green": "\033[42m",
+    "bg_yellow": "\033[43m",
+    "bg_blue": "\033[44m",
+    "bg_cyan": "\033[46m",
+}
+
+
+def c(text, color="", bold=False, dim=False):
+    """Wrap text in ANSI color codes (no-op if colors unsupported)."""
+    if not _USE_COLOR:
+        return text
+    out = _COLORS.get(color, "")
+    if bold:
+        out += _BOLD
+    if dim:
+        out += _DIM
+    if not out:
+        return text
+    return out + text + _RESET
+
+
+def ok(text="OK"):
+    return c("✓ " + text, "green", bold=True)
+
+
+def warn(text):
+    return c("⚠ " + text, "yellow", bold=True)
+
+
+def err(text):
+    return c("✗ " + text, "red", bold=True)
+
+
+def info(text):
+    return c("• " + text, "cyan")
+
+
+def dim(text):
+    return c(text, dim=True)
+
+
+def bar(char="─", n=58, color="cyan"):
+    return c(char * n, color)
+
+
+def header(title, color="cyan", icon=""):
+    """Draw a colored box header (Claude Code style)."""
+    n = 58
+    top = c("╭" + "─" * (n - 2) + "╮", color)
+    mid = c("│", color) + " " + c(title, color, bold=True) + " " * (n - 3 - len(title)) + c("│", color)
+    bot = c("╰" + "─" * (n - 2) + "╯", color)
+    print(top)
+    print(mid)
+    print(bot)
+
+
+def banner():
+    """Main title banner."""
+    n = 60
+    if not _USE_COLOR:
+        print("=" * n)
+        print("  TRAINTRACK — Indian Railways CLI")
+        print("=" * n)
+        return
+    # gradient title
+    name = "TRAINTRACK"
+    grad_colors = ["bright_cyan", "cyan", "bright_blue", "blue", "bright_magenta", "magenta"]
+    title = "".join(c(ch, grad_colors[i % len(grad_colors)], bold=True)
+                    for i, ch in enumerate(name))
+    line1 = c("╔" + "═" * (n - 2) + "╗", "bright_cyan")
+    line2 = c("║", "bright_cyan") + "  " + title + c("║", "bright_cyan")
+    line3 = c("║", "bright_cyan") + "  " + c("Indian Railways CLI", "bright_white", bold=True) + " " * (n - 3 - 20 - 2) + c("║", "bright_cyan")
+    line4 = c("║", "bright_cyan") + "  " + dim("PNR • Live Status • Names • Seats") + " " * (n - 3 - 34 - 2) + c("║", "bright_cyan")
+    line5 = c("╚" + "═" * (n - 2) + "╝", "bright_cyan")
+    print(line1)
+    print(line2)
+    print(line3)
+    print(line4)
+    print(line5)
 
 
 # ==================================================================
@@ -483,48 +603,47 @@ def irctc_full_names(pnr):
 def pnr_status():
     pnr = input("10-digit PNR number: ").strip()
     if not (pnr.isdigit() and len(pnr) == 10):
-        print("[!] PNR must be 10 digits.")
+        print(warn("PNR must be 10 digits."))
         return
-    print(f"\n[..] Fetching PNR {pnr}...\n")
+    print("\n" + info("Fetching PNR %s ..." % pnr))
 
     # 1. train enquiry API (reliable)
     body = '{\n  "pnr":"%s",\n  "method":"pnr"\n}' % pnr
     try:
         resp = backend_call(body)
     except Exception as e:
-        print(f"[X] Backend error: {e}")
+        print(err("Backend error: %s" % e))
         resp = None
     if resp and resp.get("status") == "SUCCESS":
         d = resp["response"]
-        print("=" * 60)
-        print("  PNR STATUS")
-        print("=" * 60)
-        print(f"  PNR Number        : {d.get('pnrNumber')}")
-        print(f"  Train             : {d.get('trainNumber')} - {d.get('trainName')}")
-        print(f"  Journey Date      : {d.get('dateOfJourney')}")
-        print(f"  From -> To        : {d.get('sourceStation')} -> {d.get('destinationStation')}")
-        print(f"  Boarding Point    : {d.get('boardingPoint')}")
-        print(f"  Reservation Upto  : {d.get('reservationUpto')}")
-        print(f"  Class             : {d.get('journeyClass')}")
-        print(f"  Quota             : {d.get('quota')}")
-        print(f"  Chart Status      : {d.get('chartStatus')}")
-        print(f"  Booking Fare      : Rs.{d.get('bookingFare')}")
-        print(f"  Distance          : {d.get('distance')} km")
-        print(f"  Booking Date      : {d.get('bookingDate')}")
-        print()
+        header("PNR STATUS", "bright_cyan")
+        def kv(k, v):
+            print("  " + c(k + ":", "cyan") + " " + c(str(v), "bright_white"))
+        kv("PNR Number", d.get("pnrNumber"))
+        kv("Train", "%s - %s" % (d.get("trainNumber"), d.get("trainName")))
+        kv("Journey Date", d.get("dateOfJourney"))
+        kv("From -> To", "%s -> %s" % (d.get("sourceStation"), d.get("destinationStation")))
+        kv("Boarding Point", d.get("boardingPoint"))
+        kv("Reservation Upto", d.get("reservationUpto"))
+        kv("Class", d.get("journeyClass"))
+        kv("Quota", d.get("quota"))
+        kv("Chart Status", d.get("chartStatus"))
+        kv("Booking Fare", "Rs." + str(d.get("bookingFare")))
+        kv("Distance", str(d.get("distance")) + " km")
+        kv("Booking Date", d.get("bookingDate"))
         pl = d.get("passengerList", [])
         if pl:
-            print("  PASSENGERS:")
+            print()
+            print("  " + c("PASSENGERS", "bright_green", bold=True))
             for p in pl:
-                print(f"    #{p.get('passengerSerialNumber')}: "
-                      f"{p.get('currentStatusDetails', p.get('bookingStatusDetails'))} "
-                      f"({p.get('currentStatus', p.get('bookingStatus'))})")
-        print("=" * 60)
+                print("    " + c("#%s" % p.get("passengerSerialNumber"), "green") + "  " +
+                      c(p.get("currentStatusDetails", p.get("bookingStatusDetails")), "bright_white") +
+                      "  " + dim("(" + str(p.get("currentStatus", p.get("bookingStatus"))) + ")"))
     else:
-        print("[!] Backend response:", resp.get("response", resp) if resp else "error")
+        print(warn("Backend response: %s" % (resp.get("response", resp) if resp else "error")))
 
     # 2. IRCTC Tourism — real masked name (e.g. "CHAxxxx xxxxx")
-    print("\n[..] Fetching passenger names (IRCTC Tourism)...")
+    print("\n" + info("Fetching passenger names (IRCTC Tourism) ..."))
     try:
         obj = None
         for attempt in range(3):
@@ -537,25 +656,24 @@ def pnr_status():
         if obj:
             passengers = obj.get("passengerDetailsDTO", [])
             if passengers:
-                print("\n" + "=" * 60)
-                print("  PASSENGER NAMES (IRCTC)")
-                print("=" * 60)
+                print()
+                header("PASSENGER NAMES", "bright_magenta")
                 for p in passengers:
                     name = p.get("displayName", "?")
                     age = p.get("age", "?")
                     gender = p.get("gender", "?")
                     seat = p.get("seatStts", "?")
                     gmap = {"M": "Male", "F": "Female"}
-                    print(f"    #{p.get('serialNo')}: {name}  "
-                          f"(age {age}, {gmap.get(gender, gender)})  |  {seat}")
-                print("=" * 60)
+                    print("    " + c("#%s" % p.get("serialNo"), "magenta") + "  " +
+                          c(name, "bright_white", bold=True) + "  " +
+                          dim("(age %s, %s)  |  %s" % (age, gmap.get(gender, gender), seat)))
         else:
-            print("    (No name from IRCTC yet — full name appears after chart preparation)")
+            print("    " + dim("No name from IRCTC yet — full name appears after chart preparation"))
     except Exception as e:
-        print(f"[!] IRCTC error: {e}")
+        print(warn("IRCTC error: %s" % e))
 
     # 3. ixigo (backup, pre-chart placeholder)
-    print("\n[..] Verifying with ixigo...")
+    print("\n" + info("Verifying with ixigo ..."))
     try:
         ix = ixigo_pnr(pnr)
         it = (ix.get("data", {}) or {}).get("itineraries", [{}])
@@ -563,21 +681,21 @@ def pnr_status():
             it = it[0]
             names = it.get("passengers", [])
             if names:
-                print("  (ixigo data — seat/berth confirmation):")
+                print("  " + dim("(ixigo — seat/berth confirmation)"))
                 for p in names:
                     berth = p.get("berth", "")
                     seat = p.get("seat", "")
                     st = p.get("currentBookingStatus", {}).get("text", p.get("status", ""))
-                    print(f"    #{p.get('serialNo')}: {berth}  |  {seat}  |  {st}")
+                    print("    " + c("#%s" % p.get("serialNo"), "cyan") + "  " + c("%s  |  %s  |  %s" % (berth, seat, st), "bright_white"))
     except Exception as e:
-        print(f"[!] ixigo error: {e}")
+        print(warn("ixigo error: %s" % e))
 
 
 def pnr_names_irctc():
     """Real masked name (e.g. 'CHAxxxx xxxxx') — IRCTC Tourism API."""
     pnr = input("10-digit PNR number: ").strip()
     if not (pnr.isdigit() and len(pnr) == 10):
-        print("[!] PNR must be 10 digits.")
+        print(warn("PNR must be 10 digits."))
         return
     print(f"\n[..] Fetching names for PNR {pnr} (IRCTC Tourism)...\n")
 
@@ -593,41 +711,40 @@ def pnr_names_irctc():
         except Exception as e:
             last_err = str(e)
     if obj is None:
-        print("[X] IRCTC fail:", last_err)
+        print(err("IRCTC fail: %s" % last_err))
         return
 
     passengers = obj.get("passengerDetailsDTO", [])
-    print("=" * 60)
-    print(f"  PNR {pnr} — {obj.get('trainNum')} {obj.get('trainName')}")
-    print(f"  {obj.get('stationFrom')} -> {obj.get('stationTo')} | "
-          f"Class {obj.get('journeyClass')} | {obj.get('chartStts')}")
-    print("=" * 60)
-    print("  PASSENGERS:")
+    header("PASSENGER NAMES", "bright_magenta")
+    print("  " + c("PNR %s  •  %s %s" % (pnr, obj.get("trainNum"), obj.get("trainName")), "bright_white", bold=True))
+    print("  " + dim("%s -> %s  |  Class %s  |  %s" % (
+        obj.get("stationFrom"), obj.get("stationTo"),
+        obj.get("journeyClass"), obj.get("chartStts"))))
     for p in passengers:
         name = p.get("displayName", "?")
         age = p.get("age", "?")
         gender = p.get("gender", "?")
         seat = p.get("seatStts", "?")
         gmap = {"M": "Male", "F": "Female"}
-        print(f"    #{p.get('serialNo')}: {name}  (age {age}, "
-              f"{gmap.get(gender, gender)})  |  {seat}")
-    print("=" * 60)
+        print("    " + c("#%s" % p.get("serialNo"), "magenta") + "  " +
+              c(name, "bright_white", bold=True) + "  " +
+              dim("(age %s, %s)  |  %s" % (age, gmap.get(gender, gender), seat)))
 
 
 def live_status():
     train_no = input("Train number (e.g. 15708): ").strip()
     if not train_no.isdigit():
-        print("[!] Please enter a valid train number.")
+        print(warn("Please enter a valid train number."))
         return
     date = input("Journey date (YYYYMMDD, Enter = today): ").strip()
     if not date:
         date = datetime.now().strftime("%Y%m%d")
-    print(f"\n[..] Train {train_no} live status ({date})...\n")
+    print("\n" + info("Fetching live status for train %s (%s) ..." % (train_no, date)))
     body = '{"trno":"%s", "jdate":"%s", "method":"lts", "wdata":""}' % (train_no, date)
     try:
         resp = backend_call(body)
     except Exception as e:
-        print(f"[X] Error: {e}")
+        print(err("Error: %s" % e))
         return
     if resp.get("status") != "SUCCESS":
         print("[!] Backend response:", resp.get("response", resp))
@@ -637,48 +754,48 @@ def live_status():
         print("[!] Data not available:", (d.get("error") or {}).get("message", ""))
         return
     sd = d["availableStatusData"]
-    print("=" * 60)
-    print("  LIVE TRAIN STATUS")
-    print("=" * 60)
-    print(f"  Train         : {sd.get('trainName')}")
-    print(f"  Status        : {sd.get('statusMessage')}")
-    print(f"  Last Station  : {sd.get('last_known_stn')} "
-          f"({sd.get('last_known_event')})")
+    header("LIVE TRAIN STATUS", "bright_green")
+    def kv(k, v):
+        print("  " + c(k + ":", "green") + " " + c(str(v), "bright_white"))
+    kv("Train", sd.get("trainName"))
+    kv("Status", sd.get("statusMessage"))
+    kv("Last Station", "%s (%s)" % (sd.get("last_known_stn"), sd.get("last_known_event")))
     loc = sd.get("locationData")
     if loc:
-        print(f"  Location      : lat={loc.get('lat')}, lon={loc.get('lon')}")
-    print(f"  Cancellation  : {sd.get('cancellation')}")
-    print(f"  Diversion     : {sd.get('diversion')}")
-    print(f"  Reschedule    : {sd.get('reschedule')}")
-    print()
+        kv("Location", "lat=%s, lon=%s" % (loc.get("lat"), loc.get("lon")))
+    kv("Cancellation", sd.get("cancellation"))
+    kv("Diversion", sd.get("diversion"))
+    kv("Reschedule", sd.get("reschedule"))
     dd = sd.get("delayData", [])
     if dd:
-        print("  STATION DELAYS:")
+        print()
+        print("  " + c("STATION DELAYS", "bright_yellow", bold=True))
         for s in dd:
             stn = s.get("stn", "")
             arr = s.get("arr_delay", "-")
             dep = s.get("dep_delay", "-")
             plat = s.get("ntes_platform", "")
-            print(f"    {stn:<8} arr+{arr}  dep+{dep}  (pf {plat})")
-    print("=" * 60)
+            delay = "arr+%s dep+%s" % (arr, dep)
+            print("    " + c("%-8s" % stn, "yellow") + "  " +
+                  c(delay, "bright_white") + "  " + dim("(pf %s)" % plat))
 
 
 def trains_between():
     frm = input("From station code (e.g. NDLS): ").strip().upper()
     to = input("To station code (e.g. CNB): ").strip().upper()
     if not frm or not to:
-        print("[!] Both station codes are required.")
+        print(warn("Both station codes are required."))
         return
-    print(f"\n[..] {frm} -> {to} trains...\n")
+    print("\n" + info("Fetching trains %s -> %s ..." % (frm, to)))
     try:
         trains = erail_trains(frm, to)
     except Exception as e:
-        print(f"[X] Error: {e}")
+        print(err("Error: %s" % e))
         return
     if not trains:
-        print("[!] No trains found (wrong code? Use Station Helper).")
+        print(warn("No trains found — wrong code? Use Station Helper."))
         return
-    print(f"{'TRAIN':<7} {'NAME':<24} {'DEP':<7} {'ARR':<7} {'TYPE':<13} {'DIST':<6} RUNS")
+    print("  " + c("TRAIN", "cyan", bold=True) + "  " + c("NAME", "bright_white", bold=True) + "  " + c("DEP", "green", bold=True) + "  " + c("ARR", "green", bold=True) + "  " + c("TYPE", "yellow", bold=True) + "  " + c("DIST", "magenta", bold=True) + "  " + c("RUNS", "blue", bold=True))
     print("-" * 95)
     for t in trains[:30]:
         print(f"{t['no']:<7} {t['name'][:23]:<24} {t['dep']:<7} {t['arr']:<7} "
@@ -693,20 +810,20 @@ def seat_availability():
     if not date:
         date = datetime.now().strftime("%d-%m-%Y")
     quota = input("Quota (Enter = GN): ").strip().upper() or "GN"
-    print(f"\n[..] {frm}->{to} on {date} ({quota})...\n")
+    print("\n" + info("Checking availability %s -> %s on %s (%s) ..." % (frm, to, date, quota)))
     try:
         trains = erail_trains(frm, to, date=date, quota=quota)
     except Exception as e:
-        print(f"[X] Error: {e}")
+        print(err("Error: %s" % e))
         return
     if not trains:
-        print("[!] No trains found.")
+        print(warn("No trains found."))
         return
-    print(f"{'TRAIN':<7} {'NAME':<24} {'DEP':<7} {'ARR':<7} TYPE")
+    print("  " + c("TRAIN", "cyan", bold=True) + "  " + c("NAME", "bright_white", bold=True) + "  " + c("DEP", "green", bold=True) + "  " + c("ARR", "green", bold=True) + "  " + c("TYPE", "yellow", bold=True))
     print("-" * 70)
     for t in trains[:30]:
         print(f"{t['no']:<7} {t['name'][:23]:<24} {t['dep']:<7} {t['arr']:<7} {t['type']}")
-    print("\n[!] Class-wise availability (SL/3A/2A) is limited via the free eRail API.")
+    print("\n" + dim("Class-wise availability (SL/3A/2A) is limited via the free eRail API."))
 
 
 def station_helper():
@@ -724,7 +841,7 @@ def station_helper():
     for c, n in hits:
         print(f"  {c:<6} {n}")
     if not hits:
-        print("[!] Not found in common list. Common codes:")
+        print(warn("Not found in common list. Common codes:"))
         for c, n in common.items():
             print(f"  {c:<6} {n}")
 
@@ -829,46 +946,54 @@ def change_launch_command():
 
 
 MENU = [
-    ("PNR Status (+ Names)", pnr_status),
-    ("Live Train Status", live_status),
-    ("Trains Between Stations", trains_between),
-    ("Seat Availability", seat_availability),
-    ("PNR Names (IRCTC - masked)", pnr_names_irctc),
-    ("Station Code Helper", station_helper),
-    ("Change Launch Command", change_launch_command),
+    ("PNR Status", pnr_status, "🎫"),
+    ("Live Train Status", live_status, "🛰️"),
+    ("Trains Between Stations", trains_between, "🔀"),
+    ("Seat Availability", seat_availability, "💺"),
+    ("PNR Names (IRCTC)", pnr_names_irctc, "👤"),
+    ("Station Code Helper", station_helper, "📍"),
+    ("Change Launch Command", change_launch_command, "⚙️"),
 ]
+
+_MENU_COLORS = ["bright_cyan", "bright_green", "bright_yellow", "bright_magenta",
+                "bright_blue", "bright_white", "yellow"]
 
 
 def main():
-    print("=" * 60)
-    print("  TrainTrack — Indian Railways CLI")
-    print("=" * 60)
-    print("  PNR + Live Status  -> live enquiry data")
-    print("  Names              -> IRCTC Tourism (real masked name)")
-    print("  Trains/Seat        -> eRail public API")
+    banner()
+    print()
+    print("  " + c("Everything from your terminal — no app needed.", "bright_white", dim=True))
     print()
     while True:
-        print("\n--- MAIN MENU ---")
-        for i, (name, _) in enumerate(MENU, 1):
-            print(f"  {i}. {name}")
-        print("  0. Exit")
+        print(bar("─", 58, "cyan"))
+        print("  " + c("MAIN MENU", "bright_cyan", bold=True))
+        print(bar("─", 58, "cyan"))
+        for i, (name, _, icon) in enumerate(MENU, 1):
+            col = _MENU_COLORS[i - 1] if i - 1 < len(_MENU_COLORS) else "white"
+            num = c("%d" % i, col, bold=True)
+            if _USE_COLOR:
+                print("    " + num + "  " + icon + " " + c(name, "bright_white"))
+            else:
+                print("    %d. %s" % (i, name))
+        print("    " + c("0", "red", bold=True) + "  " + c("Exit", "bright_red" if _USE_COLOR else ""))
+        print()
         try:
-            ch = input("\nOption: ").strip()
+            ch = input(c("  › ", "bright_cyan", bold=True) if _USE_COLOR else "Option: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye!")
+            print("\n" + c("Goodbye! 👋", "bright_green", bold=True))
             break
         if ch in ("0", ""):
-            print("Goodbye!")
+            print(c("Goodbye! 👋", "bright_green", bold=True))
             break
         if ch.isdigit() and 1 <= int(ch) <= len(MENU):
             try:
                 MENU[int(ch) - 1][1]()
             except KeyboardInterrupt:
-                print("\n[cancelled]")
+                print("\n" + warn("cancelled"))
             except Exception as e:
-                print(f"[X] Error: {e}")
+                print(err("Error: %s" % e))
         else:
-            print("[!] Invalid option.")
+            print(warn("Invalid option — try again."))
 
 
 if __name__ == "__main__":
