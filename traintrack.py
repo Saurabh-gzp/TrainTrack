@@ -11,10 +11,10 @@ FEATURES:
   2. Live Train Status      -> trackmytrain backend
   3. Trains Between         -> eRail public API
   4. Seat Availability      -> eRail public API
-  5. PNR Names (IRCTC)      -> asli masked name ("CHAxxxx xxxxx")
+  5. PNR Names (IRCTC)      -> real masked name ("CHAxxxx xxxxx")
   6. Station Code Helper
 
-KOI pip install NAHI chahiye — sirf Python 3.
+No pip install needed — just Python 3.
 
 REVERSE-ENGINEERED (is app se):
   - ChaCha20 stream cipher (trackmytrain backend)
@@ -436,7 +436,7 @@ def erail_trains(frm, to, date=None, quota="GN"):
 
 
 # ==================================================================
-# IRCTC Tourism (asli masked name)
+# IRCTC Tourism (real masked name)
 # ==================================================================
 GUEST_KEY = "16AB5B0488AEC6D551F3649A9903554B"
 GUEST_IV = "EDA480701417E5D0"
@@ -487,9 +487,9 @@ def irctc_full_names(pnr):
 def pnr_status():
     pnr = input("10-digit PNR number: ").strip()
     if not (pnr.isdigit() and len(pnr) == 10):
-        print("[!] PNR 10 digits ka hota hai.")
+        print("[!] PNR must be 10 digits.")
         return
-    print(f"\n[..] PNR {pnr} fetch ho raha hai...\n")
+    print(f"\n[..] Fetching PNR {pnr}...\n")
 
     # 1. trackmytrain backend (reliable)
     body = '{\n  "pnr":"%s",\n  "method":"pnr"\n}' % pnr
@@ -527,8 +527,8 @@ def pnr_status():
     else:
         print("[!] Backend response:", resp.get("response", resp) if resp else "error")
 
-    # 2. IRCTC Tourism — ASLI masked name (jaise "CHAxxxx xxxxx")
-    print("\n[..] Asli naam fetch ho rahe hain (IRCTC Tourism)...")
+    # 2. IRCTC Tourism — real masked name (e.g. "CHAxxxx xxxxx")
+    print("\n[..] Fetching passenger names (IRCTC Tourism)...")
     try:
         obj = None
         for attempt in range(3):
@@ -542,7 +542,7 @@ def pnr_status():
             passengers = obj.get("passengerDetailsDTO", [])
             if passengers:
                 print("\n" + "=" * 60)
-                print("  PASSENGER NAMES (IRCTC — asli naam)")
+                print("  PASSENGER NAMES (IRCTC)")
                 print("=" * 60)
                 for p in passengers:
                     name = p.get("displayName", "?")
@@ -554,12 +554,12 @@ def pnr_status():
                           f"(age {age}, {gmap.get(gender, gender)})  |  {seat}")
                 print("=" * 60)
         else:
-            print("    (IRCTC se naam nahi mila — chart ke baad full name milega)")
+            print("    (No name from IRCTC yet — full name appears after chart preparation)")
     except Exception as e:
         print(f"[!] IRCTC error: {e}")
 
     # 3. ixigo (backup, pre-chart placeholder)
-    print("\n[..] ixigo se bhi verify ho raha hai...")
+    print("\n[..] Verifying with ixigo...")
     try:
         ix = ixigo_pnr(pnr)
         it = (ix.get("data", {}) or {}).get("itineraries", [{}])
@@ -567,7 +567,7 @@ def pnr_status():
             it = it[0]
             names = it.get("passengers", [])
             if names:
-                print("  (ixigo data — seat/berth confirm ke liye):")
+                print("  (ixigo data — seat/berth confirmation):")
                 for p in names:
                     berth = p.get("berth", "")
                     seat = p.get("seat", "")
@@ -578,12 +578,12 @@ def pnr_status():
 
 
 def pnr_names_irctc():
-    """Asli masked name (jaise 'CHAxxxx xxxxx') — IRCTC Tourism API."""
+    """Real masked name (e.g. 'CHAxxxx xxxxx') — IRCTC Tourism API."""
     pnr = input("10-digit PNR number: ").strip()
     if not (pnr.isdigit() and len(pnr) == 10):
-        print("[!] PNR 10 digits ka hota hai.")
+        print("[!] PNR must be 10 digits.")
         return
-    print(f"\n[..] PNR {pnr} names fetch ho rahe hain (IRCTC Tourism)...\n")
+    print(f"\n[..] Fetching names for PNR {pnr} (IRCTC Tourism)...\n")
 
     # retry loop (network flaky ho sakta hai)
     obj = None
@@ -606,7 +606,7 @@ def pnr_names_irctc():
     print(f"  {obj.get('stationFrom')} -> {obj.get('stationTo')} | "
           f"Class {obj.get('journeyClass')} | {obj.get('chartStts')}")
     print("=" * 60)
-    print("  PASSENGERS (asli naam):")
+    print("  PASSENGERS:")
     for p in passengers:
         name = p.get("displayName", "?")
         age = p.get("age", "?")
@@ -621,9 +621,9 @@ def pnr_names_irctc():
 def live_status():
     train_no = input("Train number (e.g. 15708): ").strip()
     if not train_no.isdigit():
-        print("[!] Valid train number daalo.")
+        print("[!] Please enter a valid train number.")
         return
-    date = input("Journey date (YYYYMMDD, Enter = aaj): ").strip()
+    date = input("Journey date (YYYYMMDD, Enter = today): ").strip()
     if not date:
         date = datetime.now().strftime("%Y%m%d")
     print(f"\n[..] Train {train_no} live status ({date})...\n")
@@ -671,7 +671,7 @@ def trains_between():
     frm = input("From station code (e.g. NDLS): ").strip().upper()
     to = input("To station code (e.g. CNB): ").strip().upper()
     if not frm or not to:
-        print("[!] Dono station codes chahiye.")
+        print("[!] Both station codes are required.")
         return
     print(f"\n[..] {frm} -> {to} trains...\n")
     try:
@@ -680,7 +680,7 @@ def trains_between():
         print(f"[X] Error: {e}")
         return
     if not trains:
-        print("[!] Koi train nahi mili (code galat? Station Helper use karo).")
+        print("[!] No trains found (wrong code? Use Station Helper).")
         return
     print(f"{'TRAIN':<7} {'NAME':<24} {'DEP':<7} {'ARR':<7} {'TYPE':<13} {'DIST':<6} RUNS")
     print("-" * 95)
@@ -693,7 +693,7 @@ def trains_between():
 def seat_availability():
     frm = input("From station code: ").strip().upper()
     to = input("To station code: ").strip().upper()
-    date = input("Date (DD-MM-YYYY, Enter = aaj): ").strip()
+    date = input("Date (DD-MM-YYYY, Enter = today): ").strip()
     if not date:
         date = datetime.now().strftime("%d-%m-%Y")
     quota = input("Quota (Enter = GN): ").strip().upper() or "GN"
@@ -704,17 +704,17 @@ def seat_availability():
         print(f"[X] Error: {e}")
         return
     if not trains:
-        print("[!] Koi train nahi mili.")
+        print("[!] No trains found.")
         return
     print(f"{'TRAIN':<7} {'NAME':<24} {'DEP':<7} {'ARR':<7} TYPE")
     print("-" * 70)
     for t in trains[:30]:
         print(f"{t['no']:<7} {t['name'][:23]:<24} {t['dep']:<7} {t['arr']:<7} {t['type']}")
-    print("\n[!] Class-wise availability (SL/3A/2A) eRail free API se limited hai.")
+    print("\n[!] Class-wise availability (SL/3A/2A) is limited via the free eRail API.")
 
 
 def station_helper():
-    q = input("Station naam ka hissa (e.g. kan): ").strip().lower()
+    q = input("Station name fragment (e.g. kan): ").strip().lower()
     common = {"NDLS": "New Delhi", "CNB": "Kanpur Central", "BCT": "Mumbai Central",
               "CSTM": "Mumbai CSMT", "HWH": "Howrah", "SDAH": "Sealdah",
               "MAS": "Chennai Central", "BZA": "Vijayawada", "PNBE": "Patna",
@@ -728,7 +728,7 @@ def station_helper():
     for c, n in hits:
         print(f"  {c:<6} {n}")
     if not hits:
-        print("[!] Common list me nahi mila. Common codes:")
+        print("[!] Not found in common list. Common codes:")
         for c, n in common.items():
             print(f"  {c:<6} {n}")
 
@@ -747,8 +747,8 @@ def main():
     print("=" * 60)
     print("  TRACK MY TRAIN — CLI  (Indian Railways)")
     print("=" * 60)
-    print("  PNR + Live Status  -> app ka private backend (cracked)")
-    print("  Names              -> IRCTC Tourism (asli masked name)")
+    print("  PNR + Live Status  -> app private backend (reverse-engineered)")
+    print("  Names              -> IRCTC Tourism (real masked name)")
     print("  Trains/Seat        -> eRail public API")
     print()
     while True:
@@ -759,10 +759,10 @@ def main():
         try:
             ch = input("\nOption: ").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nBye!")
+            print("\nGoodbye!")
             break
         if ch in ("0", ""):
-            print("Bye!")
+            print("Goodbye!")
             break
         if ch.isdigit() and 1 <= int(ch) <= len(MENU):
             try:
@@ -772,7 +772,7 @@ def main():
             except Exception as e:
                 print(f"[X] Error: {e}")
         else:
-            print("[!] Galat option.")
+            print("[!] Invalid option.")
 
 
 if __name__ == "__main__":

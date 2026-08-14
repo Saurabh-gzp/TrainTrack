@@ -15,7 +15,7 @@ echo ""
 
 # 1. Check python3
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "[!] python3 nahi mila. Install karo:"
+    echo "[!] python3 not found. Install it with:"
     echo "    Linux (Debian/Ubuntu): sudo apt install python3"
     echo "    Termux:                pkg install python"
     echo "    macOS:                 brew install python3"
@@ -29,7 +29,7 @@ if command -v curl >/dev/null 2>&1; then
 elif command -v wget >/dev/null 2>&1; then
     FETCH="wget -qO-"
 else
-    echo "[!] curl ya wget chahiye. Termux: pkg install curl"
+    echo "[!] curl or wget is required. Termux: pkg install curl"
     exit 1
 fi
 
@@ -62,14 +62,14 @@ echo "=========================================="
 echo "  INSTALL COMPLETE!"
 echo "=========================================="
 echo ""
-echo "  Run karne ke 2 tarike:"
+echo "  Run it in either of two ways:"
 echo ""
 echo "  1) Direct (recommended):"
 echo "     python3 $INSTALL_DIR/traintrack.py"
 echo ""
-echo "  2) Alias (naya terminal kholne ke baad):"
+echo "  2) Command (after opening a new terminal):"
 echo "     traintrack.py"
 echo ""
-echo "  NOTE: naya terminal kholo taaki PATH update ho."
+echo "  NOTE: open a new terminal so the PATH update takes effect."
 echo "=========================================="
 echo ""

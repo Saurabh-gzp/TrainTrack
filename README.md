@@ -1,13 +1,13 @@
 # 🚆 TrainTrack — Indian Railways CLI
 
-> **PNR Status · Live Train Status · Passenger Names · Seat Availability** — sab kuch apne terminal me, ek command se.
+> **PNR Status · Live Train Status · Passenger Names · Seat Availability** — all from your terminal, with a single command.
 
 [![Python](https://img.shields.io/badge/Python-3.6%2B-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Termux-green.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-None-red.svg)]()
 
-Kya aap **IRCTC website** ya **app kholne** se pareshan ho? TrainTrack aapko **terminal se hi** saari train information deta hai — bina kisi app ke.
+Tired of opening the IRCTC website or a mobile app just to check your PNR or train status? TrainTrack gives you all the train information you need **right from your terminal** — no app required.
 
 ---
 
@@ -15,24 +15,24 @@ Kya aap **IRCTC website** ya **app kholne** se pareshan ho? TrainTrack aapko **t
 
 | Feature | Description |
 |---------|-------------|
-| 🎫 **PNR Status** | Train, class, berth, fare, chart status — sab kuch |
-| 👤 **Passenger Names** | Asli naam (chart ke baad full, pehle masked) |
-| 🚄 **Live Train Status** | Train abhi kahan hai + har station ka delay |
-| 🔀 **Trains Between Stations** | Dono stations ke beech saari trains |
-| 💺 **Seat Availability** | Date + quota ke hisaab se availability |
-| 📍 **Station Code Helper** | Common station codes |
+| 🎫 **PNR Status** | Train, class, berth, fare, chart status — everything |
+| 👤 **Passenger Names** | Real name (masked before chart, full after) |
+| 🚄 **Live Train Status** | Current location + per-station delays |
+| 🔀 **Trains Between Stations** | All trains between any two stations |
+| 💺 **Seat Availability** | Availability by date and quota |
+| 📍 **Station Code Helper** | Quick reference for common station codes |
 
 ---
 
-## 🚀 Install (ek command)
+## 🚀 Install (one command)
 
-### Linux / macOS / Termux / WSL — sab me same
+### Works on Linux / macOS / Termux / WSL — all the same
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Saurabh-gzp/TrainTrack/main/install.sh | bash
 ```
 
-Ya manual:
+Or manually:
 
 ```bash
 git clone https://github.com/Saurabh-gzp/TrainTrack.git
@@ -40,7 +40,7 @@ cd TrainTrack
 python3 traintrack.py
 ```
 
-> **Requirements:** Sirf **Python 3.6+** chahiye. Koi `pip install` nahi. Koi dependency nahi.
+> **Requirements:** Only **Python 3.6+**. No `pip install`. No dependencies.
 
 ---
 
@@ -52,7 +52,7 @@ python3 traintrack.py
 
 ### Menu
 ```
-  1. PNR Status (+ Names)     ← sab ek saath (recommended)
+  1. PNR Status (+ Names)     ← everything in one place (recommended)
   2. Live Train Status
   3. Trains Between Stations
   4. Seat Availability
@@ -101,31 +101,31 @@ Journey date (YYYYMMDD): 20260814
 
 ## ❓ FAQ
 
-**Q: Passenger name "CHAxxxx xxxxx" kyu dikh raha hai?**
-A: Indian Railways **chart preparation se pehle** naam mask karta hai (privacy rule). Chart banne ke baad (~4 ghante pehle departure) **full name** dikhega. Ye har app me same hai.
+**Q: Why does the passenger name show as "CHAxxxx xxxxx"?**
+A: Indian Railways **masks the name before chart preparation** (privacy rule). Once the chart is prepared (~4 hours before departure), the **full name** is shown. This is the same across all apps.
 
-**Q: Termux me chalega?**
-A: Haan, 100%. Bas `pkg install python` karo phir install command chalao.
+**Q: Does it work on Termux?**
+A: Yes, 100%. Just run `pkg install python`, then run the install command.
 
-**Q: Koi API key chahiye?**
-A: Nahi. Sab kuch ready hai.
+**Q: Do I need an API key?**
+A: No. Everything is ready out of the box.
 
-**Q: Galat PNR pe kya hoga?**
-A: "Invalid PNR" error dikhega. PNR 10 digits ka hona chahiye.
+**Q: What happens with an invalid PNR?**
+A: You'll see an "Invalid PNR" error. The PNR must be 10 digits.
 
 ---
 
 ## 🛡️ Security / Privacy
 
-- Tool **sirf public enquiry data** fetch karta hai
-- **Koi login/password nahi** bhejta
-- **Koi data store nahi** karta (stateless)
+- The tool only fetches **public enquiry data**
+- It does **not send any login or password**
+- It does **not store any data** (fully stateless)
 
 ---
 
 ## 🤝 Contributing
 
-PRs welcome! Issue open karo agar koi feature chahiye.
+PRs welcome! Open an issue if you'd like a new feature.
 
 ## 📜 License
 
@@ -133,4 +133,4 @@ PRs welcome! Issue open karo agar koi feature chahiye.
 
 ---
 
-⭐ **Repo pasand aaya to star de do!** Star se aur logon ko milega.
+⭐ **If you like this repo, please give it a star!** Stars help more people discover it.
