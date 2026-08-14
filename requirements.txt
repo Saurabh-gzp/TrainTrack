@@ -1,0 +1,7 @@
+# TrainTrack — dependencies
+#
+# NOTE: koi external dependency NAHI hai.
+# Ye tool 100% Python standard library use karta hai.
+# Sirf Python 3.6+ chahiye.
+#
+# (khali file — kuch install karne ki zaroorat nahi)
